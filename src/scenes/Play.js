@@ -25,53 +25,87 @@ class Play extends Phaser.Scene {
         this.speed01 = new Spaceship(this, game.config.width + 288, 132, 'speeder', 0, 50).setOrigin(0, 0)
 
         // define keys
-        keyFIRE = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F)
+        mouse = this.input
+        keyMENU = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M)
         keyRESET = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R)
-        keyLEFT = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT)
-        keyRIGHT = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT)
 
         // initialize score
         this.p1Score = 0
+        this.hScore = parseInt(localStorage.getItem("score")) || 0
         let scoreConfig = {
             fontFamily: 'Courier', 
-            fontSize: '28px',
+            fontSize: '20px',
             backgroundColor: '#F3B141',
             color: '#843605',
-            align: 'right',
+            align: 'left',
             padding: {
                 top: 5, 
                 bottom: 5,
             },
-            fixedWidth: 100
+            fixedWidth: 150
         }
-        this.scoreLeft = this.add.text(borderUISize + borderPadding, borderUISize + borderPadding*2, this.p1Score, scoreConfig)
+        this.scoreLeft = this.add.text(borderUISize + borderPadding, borderUISize + borderPadding*2, "Score: " + this.p1Score, scoreConfig)
+        this.best = this.add.text(225, 54, "Best: " + this.hScore, scoreConfig)
+
+        this.gameClock = game.settings.gameTimer
+        let gameClockConfig = {
+            fontFamily: "Courier",
+            fontSize: '20px',
+            backgroundColor: '#F3B141',
+            color: '#843605',
+            align: 'left',
+            padding: {
+                top: 5, 
+                bottom: 5,
+            },
+            fixedWidth: 140
+        }
+        this.timeLeft = this.add.text(400, 54, "Timer: " + this.formatTime(this.gameClock), gameClockConfig)
+        this.timedEvent = this.time.addEvent
+        (
+            {
+                delay: 1000,
+                callback: () =>
+                {
+                    this.gameClock -= 1000;
+                    this.timeLeft.text = "Timer: " + this.formatTime(this.gameClock)
+                },
+                scope: this,
+                loop: true
+            }
+        )
+
         // Game Over flag
         this.gameOver = false
         // 60-second play clock
         scoreConfig.fixedWidth = 0
         this.clock = this.time.delayedCall(game.settings.gameTimer, () => {
             this.add.text(game.config.width/2, game.config.height/2, 'GAME OVER', scoreConfig).setOrigin(0.5)
-            this.add.text(game.config.width/2, game.config.height/2 + 64, 'Press (R) to Restart or ← for Menu', scoreConfig).setOrigin(0.5)
+            this.add.text(game.config.width/2, game.config.height/2 + 64, 'Press (R) to Restart or (M) for Menu', scoreConfig).setOrigin(0.5)
             this.gameOver=true
         }, null, this)
+
+        this.factor = 1
+        this.upSpeed = this.time.delayedCall(game.settings.gameTimer/2, () => {this.factor = 1.5}, null, this)
     }
 
     update() {
+        if(this.gameOver) this.time.removeAllEvents()
         // check key input for restart
         if(this.gameOver && Phaser.Input.Keyboard.JustDown(keyRESET)) {
-            this.scene.restart()
+            this.scene.restart(this.p1Score)
         }
-        if(this.gameOver && Phaser.Input.Keyboard.JustDown(keyLEFT)) {
+        if(this.gameOver && Phaser.Input.Keyboard.JustDown(keyMENU)) {
             this.scene.start('menuScene')
         }
 
         this.starfield.tilePositionX -= 4
         if(!this.gameOver) {
             this.p1Rocket.update()
-            this.ship01.update()
-            this.ship02.update()
-            this.ship03.update()
-            this.speed01.update()
+            this.ship01.update(this.factor)
+            this.ship02.update(this.factor)
+            this.ship03.update(this.factor)
+            this.speed01.update(this.factor)
         }
 
         // check collisions
@@ -115,8 +149,21 @@ class Play extends Phaser.Scene {
             boom.destroy()
         })
         this.p1Score += ship.points
-        this.scoreLeft.text = this.p1Score
+        if(this.p1Score > this.hScore) {
+            this.hScore = this.p1Score
+            localStorage.setItem("score", this.hScore)
+            this.best.text = "Best: " + this.hScore
+        }
+        this.scoreLeft.text = "Score: " + this.p1Score
 
         this.sound.play('sfx-explosion')
+    }
+
+    formatTime(ms) {
+        let s = ms/1000
+        let min = Math.floor(s/60)
+        let seconds = s%60
+        seconds = seconds.toString().padStart(2, "0")
+        return `${min}:${seconds}`
     }
 }
