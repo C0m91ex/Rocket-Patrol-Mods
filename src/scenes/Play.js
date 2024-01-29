@@ -11,10 +11,11 @@ class Play extends Phaser.Scene {
         // green UI background
         this.add.rectangle(0, borderUISize + borderPadding, game.config.width, borderUISize * 2, 0x00FF00).setOrigin(0, 0)
         // white borders
-        this.add.rectangle(0, 0, game.config.width, borderUISize, 0xFFFFFF).setOrigin(0, 0)
-        this.add.rectangle(0, game.config.height - borderUISize, 0, borderUISize, game.config.width, 0xFFFFFF).setOrigin(0, 0)
-        this.add.rectangle(0, 0, borderUISize, game.config.height, 0xFFFFFF).setOrigin(0, 0)
-        this.add.rectangle(0, game.config.width - borderUISize, 0, borderUISize, game.config.height, 0xFFFFFF).setOrigin(0, 0)
+        this.add.rectangle(0-borderUISize, 0-borderUISize, game.config.width+borderUISize*2, borderUISize*2, 0xffffff).setOrigin(0 ,0).setDepth(2);
+	    this.add.rectangle(0-borderUISize, game.config.height - borderUISize, game.config.width+borderUISize*2, borderUISize*2, 0xffffff).setOrigin(0 ,0).setDepth(2);
+	    this.add.rectangle(0-borderUISize, 0-borderUISize, borderUISize*2, game.config.height, 0xffffff).setOrigin(0 ,0).setDepth(2);
+	    this.add.rectangle(game.config.width - borderUISize, 0, borderUISize*2, game.config.height, 0xffffff).setOrigin(0 ,0).setDepth(2);
+
 
         this.p1Rocket = new Rocket(this, game.config.width/2, game.config.height - borderUISize - borderPadding, 'rocket').setOrigin(0.5, 0)
         
@@ -60,20 +61,7 @@ class Play extends Phaser.Scene {
             },
             fixedWidth: 140
         }
-        this.timeLeft = this.add.text(400, 54, "Timer: " + this.formatTime(this.gameClock), gameClockConfig)
-        this.timedEvent = this.time.addEvent
-        (
-            {
-                delay: 1000,
-                callback: () =>
-                {
-                    this.gameClock -= 1000;
-                    this.timeLeft.text = "Timer: " + this.formatTime(this.gameClock)
-                },
-                scope: this,
-                loop: true
-            }
-        )
+        this.timerText = this.add.text(game.config.width - borderPadding - borderUISize - scoreConfig.fixedWidth, borderUISize + borderPadding*2, game.hScore, scoreConfig).setDepth(2)
 
         // Game Over flag
         this.gameOver = false
@@ -86,10 +74,13 @@ class Play extends Phaser.Scene {
         }, null, this)
 
         this.factor = 1
-        this.upSpeed = this.time.delayedCall(game.settings.gameTimer/2, () => {this.factor = 1.5}, null, this)
+        this.clockCounter = this.time.delayedCall(game.settings.gameTimer/2, () => {
+            game.settings.shipSpeed = game.settings.shipSpeed * 1.5
+        })
     }
 
     update() {
+        this.timerText.text = 'Time: ' + (game.settings.gameTimer/1000 - this.clock.getElapsedSeconds().toString().substr(0, 2))
         if(this.gameOver) this.time.removeAllEvents()
         // check key input for restart
         if(this.gameOver && Phaser.Input.Keyboard.JustDown(keyRESET)) {
@@ -149,6 +140,7 @@ class Play extends Phaser.Scene {
             boom.destroy()
         })
         this.p1Score += ship.points
+        this.clock.elapsed -= ship.points*100
         if(this.p1Score > this.hScore) {
             this.hScore = this.p1Score
             localStorage.setItem("score", this.hScore)
@@ -157,13 +149,5 @@ class Play extends Phaser.Scene {
         this.scoreLeft.text = "Score: " + this.p1Score
 
         this.sound.play('sfx-explosion')
-    }
-
-    formatTime(ms) {
-        let s = ms/1000
-        let min = Math.floor(s/60)
-        let seconds = s%60
-        seconds = seconds.toString().padStart(2, "0")
-        return `${min}:${seconds}`
     }
 }
